@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>登录 - goole classroom</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f7f7f8;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      background: #fff;
+      border: 1px solid #e5e5e5;
+      border-radius: 16px;
+      padding: 40px 32px;
+      width: 340px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+    h1 { font-size: 22px; text-align: center; margin-bottom: 6px; }
+    p.desc { text-align: center; color: #6b6b6b; font-size: 14px; margin-bottom: 28px; }
+    input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #e5e5e5;
+      border-radius: 10px;
+      font-size: 15px;
+      outline: none;
+      margin-bottom: 14px;
+    }
+    input:focus { border-color: #0d0d0d; }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #0d0d0d;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .err { color: #b91c1c; font-size: 13px; text-align: center; margin-top: 12px; min-height: 18px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>goole classroom</h1>
+    <p class="desc">请输入访问密码</p>
+    <input type="password" id="pwd" placeholder="密码" autofocus />
+    <button id="btn">进 入</button>
+    <div class="err" id="err"></div>
+  </div>
+  <script>
+    const pwd = document.getElementById('pwd');
+    const btn = document.getElementById('btn');
+    const err = document.getElementById('err');
+    async function login() {
+      err.textContent = '';
+      btn.disabled = true;
+      try {
+        const r = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pwd.value }),
+        });
+        if (r.ok) {
+          location.href = '/';
+        } else {
+          err.textContent = '密码错误，请重试';
+        }
+      } catch {
+        err.textContent = '网络错误，请重试';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+    btn.addEventListener('click', login);
+    pwd.addEventListener('keydown', (e) => { if (e.key === 'Enter') login(); });
+  </script>
+</body>
+</html>

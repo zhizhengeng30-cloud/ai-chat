@@ -1,6 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 dotenv.config();
@@ -14,7 +15,47 @@ const API_KEY = process.env.OPENAI_API_KEY || '';
 const BASE_URL = (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '');
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
+// 访问密码：从环境变量读取，默认 qiqi081116
+const ACCESS_PASSWORD = process.env.ACCESS_PASSWORD || 'qiqi081116';
+const SESSION_TOKEN = crypto.createHash('sha256').update(ACCESS_PASSWORD + '::goole-classroom').digest('hex');
+
 app.use(express.json({ limit: '1mb' }));
+
+// 手动解析 cookie
+function getSession(req) {
+  const header = req.headers.cookie || '';
+  for (const part of header.split(';')) {
+    const [k, ...v] = part.trim().split('=');
+    if (k === 'session') return decodeURIComponent(v.join('='));
+  }
+  return null;
+}
+
+// 登录接口（公开）
+app.post('/api/login', (req, res) => {
+  if (req.body?.password === ACCESS_PASSWORD) {
+    res.setHeader('Set-Cookie', `session=${SESSION_TOKEN}; HttpOnly; Path=/; Max-Age=2592000; SameSite=Lax`);
+    return res.json({ ok: true });
+  }
+  res.status(401).json({ error: '密码错误' });
+});
+
+// 登录页（公开）
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+// 认证中间件：除了 /login 和 /api/login，其他都需要登录
+app.use((req, res, next) => {
+  if (req.path === '/login' || req.path === '/api/login') return next();
+  if (getSession(req) === SESSION_TOKEN) return next();
+  if (req.path.startsWith('/api/')) {
+    return res.status(401).json({ error: '未登录' });
+  }
+  return res.redirect('/login');
+});
+
+// 登录后才能访问静态文件和 API
 app.use(express.static(path.join(__dirname, 'public')));
 
 // 健康检查
@@ -27,12 +68,11 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// 流式聊天代理：前端 POST /api/chat { messages: [{role, content}] }
-// 后端把 OpenAI 兼容接口的 SSE 流原样转发给前端。
+// 流式聊天代理
 app.post('/api/chat', async (req, res) => {
   if (!API_KEY) {
     return res.status(500).json({
-      error: '服务器未配置 OPENAI_API_KEY。请在项目根目录创建 .env 文件并填入你的 API 密钥。',
+      error: '服务器未配置 OPENAI_API_KEY。',
     });
   }
 
@@ -62,13 +102,11 @@ app.post('/api/chat', async (req, res) => {
       });
     }
 
-    // SSE 响应头
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders?.();
 
-    // 把上游的 SSE 字节流原样透传给前端
     const reader = upstream.body.getReader();
     while (true) {
       const { done, value } = await reader.read();
@@ -86,9 +124,6 @@ app.post('/api/chat', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`AI Chat 服务器已启动: http://localhost:${PORT}`);
+  console.log(`goole classroom 服务器已启动: http://localhost:${PORT}`);
   console.log(`模型: ${MODEL}  接口: ${BASE_URL}`);
-  if (!API_KEY) {
-    console.warn('警告: 尚未配置 OPENAI_API_KEY，请在 .env 中填入。');
-  }
 });
