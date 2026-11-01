@@ -261,11 +261,6 @@ menuBtn.addEventListener('click', () => sidebar.classList.contains('open') ? clo
 sidebarMask.addEventListener('click', closeSidebar);
 
 /* ---------- 初始化 ---------- */
-fetch('/api/health')
-  .then((r) => r.json())
-  .then((d) => { if (d.model) modelNameEl.textContent = d.model; })
-  .catch(() => {});
-
 renderHistory();
 renderMessages();
 inputEl.focus();
